@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Chunking and Retrieval</title>
+</head>
+<body>
+    <h1>Text Chunking and Retrieval Interface</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <label for="file">Upload a .txt file:</label>
+        <input type="file" name="file" id="file">
+        <br><br>
+
+        <label for="chunking_method">Select Chunking Method:</label>
+        <select name="chunking_method" id="chunking_method">
+            {% for method in chunking_methods %}
+                <option value="{{ method }}" {% if method == selected_chunking_method %}selected{% endif %}>{{ method }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <button type="submit" name="chunking_button">Chunk the Text</button>
+        <br><br>
+
+        {% if chunks %}
+            <h2>Chunks:</h2>
+            <ul>
+                {% for chunk in chunks %}
+                    <li>{{ chunk }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if metrics %}
+            <h2>Metrics:</h2>
+            <table border="1">
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+                {% for key, value in metrics.items() %}
+                    <tr>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+
+        <br><hr><br>
+
+        <label for="embedding_method">Select Embedding Method:</label>
+        <select name="embedding_method" id="embedding_method">
+            {% for method in embedding_methods %}
+                <option value="{{ method }}" {% if method == selected_embedding_method %}selected{% endif %}>{{ method }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <label for="query">Enter Query:</label>
+        <input type="text" name="query" id="query" value="{{ query }}" required>
+        <br><br>
+
+        <button type="submit" name="retrieval_button">Retrieve with Query</button>
+        <br><br>
+
+        {% if ranked_chunks %}
+            <h2>Ranked Results:</h2>
+            <ul>
+                {% for chunk, score in ranked_chunks %}
+                    <li><strong>Score:</strong> {{ score }} - <strong>Chunk:</strong> {{ chunk }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if text %}
+            <h2>Uploaded Text:</h2>
+            <p>{{ text }}</p>
+        {% endif %}
+    </form>
+</body>
+</html>
