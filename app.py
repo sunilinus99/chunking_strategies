@@ -6,8 +6,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import numpy as np
+import ssl
 
-nltk.download('punkt')
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download('punkt', quiet=True)
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required to use session
@@ -113,47 +121,30 @@ def index():
     chunks = []
     selected_chunking_method = None
     selected_embedding_method = None
-    text = None
-    query = None
+    fixed_query = "What is the summary of chapter 2?"
+    error_message = None
 
     if request.method == 'POST':
-        if 'file' in request.files and request.files['file'].filename != '':
-            file = request.files['file']
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filepath)
+        try:
+            # Read the fixed input file
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'test.txt')
+            if not os.path.exists(filepath):
+                error_message = f"Error: File not found at {filepath}"
+                return render_template(
+                    'index.html',
+                    error_message=error_message,
+                    chunking_methods=chunking_methods,
+                    embedding_methods=embedding_methods,
+                    fixed_query=fixed_query
+                )
+
             with open(filepath, 'r') as f:
                 text = f.read()
-            session['text'] = text  # Save text in session
-        else:
-            text = session.get('text')  # Use previously uploaded text
-
-        if not text:
-            return "No file uploaded. Please upload a file."
-
-        if 'chunking_button' in request.form:
-            selected_chunking_method = request.form['chunking_method']
-            if selected_chunking_method == 'Sentence-Level Chunking':
-                chunks = sentence_level_chunking(text)
-            elif selected_chunking_method == 'Fixed-Length Chunking':
-                chunks = fixed_length_chunking(text)
-            elif selected_chunking_method == 'Sliding Window Chunking':
-                chunks = sliding_window_chunking(text)
-            elif selected_chunking_method == 'Paragraph-Level Chunking':
-                chunks = paragraph_level_chunking(text)
-            elif selected_chunking_method == 'Keyword-Based Chunking':
-                chunks = keyword_based_chunking(text)
-            elif selected_chunking_method == 'Semantic-Based Chunking':
-                chunks = semantic_based_chunking(text)
-            elif selected_chunking_method == 'Auto-Chunk':
-                chunks = auto_chunk(text)
-
-            metrics = calculate_metrics(chunks)
-
-        if 'retrieval_button' in request.form:
+            
             selected_chunking_method = request.form['chunking_method']
             selected_embedding_method = request.form['embedding_method']
-            query = request.form['query']
 
+            # Apply chunking based on selected method
             if selected_chunking_method == 'Sentence-Level Chunking':
                 chunks = sentence_level_chunking(text)
             elif selected_chunking_method == 'Fixed-Length Chunking':
@@ -169,32 +160,45 @@ def index():
             elif selected_chunking_method == 'Auto-Chunk':
                 chunks = auto_chunk(text)
 
-            if query:
-                chunk_embeddings = []
-                query_embedding = []
+            # Calculate metrics
+            metrics = calculate_metrics(chunks)
 
-                if selected_embedding_method == 'TF-IDF':
-                    tfidf_vectorizer = TfidfVectorizer()
-                    chunk_embeddings = tfidf_vectorizer.fit_transform(chunks).toarray()
-                    query_embedding = tfidf_vectorizer.transform([query]).toarray()
-                elif selected_embedding_method == 'Sentence Transformers':
-                    chunk_embeddings = sentence_transformer_model.encode(chunks)
-                    query_embedding = sentence_transformer_model.encode([query])
+            # Process query using selected embedding method
+            chunk_embeddings = []
+            query_embedding = []
 
-                similarities = cosine_similarity(query_embedding, chunk_embeddings)[0]
-                ranked_chunks = sorted(zip(chunks, similarities), key=lambda x: x[1], reverse=True)
+            if selected_embedding_method == 'TF-IDF':
+                tfidf_vectorizer = TfidfVectorizer()
+                chunk_embeddings = tfidf_vectorizer.fit_transform(chunks).toarray()
+                query_embedding = tfidf_vectorizer.transform([fixed_query]).toarray()
+            elif selected_embedding_method == 'Sentence Transformers':
+                chunk_embeddings = sentence_transformer_model.encode(chunks)
+                query_embedding = sentence_transformer_model.encode([fixed_query])
+
+            similarities = cosine_similarity(query_embedding, chunk_embeddings)[0]
+            ranked_chunks = sorted(zip(chunks, similarities), key=lambda x: x[1], reverse=True)
+
+        except Exception as e:
+            error_message = f"Error: {str(e)}"
+            return render_template(
+                'index.html',
+                error_message=error_message,
+                chunking_methods=chunking_methods,
+                embedding_methods=embedding_methods,
+                fixed_query=fixed_query
+            )
 
     return render_template(
         'index.html',
-        chunking_methods=chunking_methods + ['Auto-Chunk'],
+        chunking_methods=chunking_methods,
         embedding_methods=embedding_methods,
         metrics=metrics,
         chunks=chunks,
         ranked_chunks=ranked_chunks,
         selected_chunking_method=selected_chunking_method,
         selected_embedding_method=selected_embedding_method,
-        query=query,
-        text=session.get('text')
+        fixed_query=fixed_query,
+        error_message=error_message
     )
 
 
