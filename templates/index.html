@@ -4,38 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text Chunking and Retrieval</title>
+    <style>
+        body { padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .metrics-table { border-collapse: collapse; width: 100%; }
+        .metrics-table td, .metrics-table th { border: 1px solid #ddd; padding: 8px; }
+        .chunk-list { max-height: 300px; overflow-y: auto; }
+    </style>
 </head>
 <body>
-    <h1>Text Chunking and Retrieval Interface</h1>
+    <h1>Text Analysis System</h1>
+    <p><strong>Input File:</strong> uploads/test.txt</p>
+    <p><strong>Fixed Query:</strong> "What is the summary of chapter 2?"</p>
 
-    <form method="POST" enctype="multipart/form-data">
-        <label for="file">Upload a .txt file:</label>
-        <input type="file" name="file" id="file">
-        <br><br>
-
-        <label for="chunking_method">Select Chunking Method:</label>
-        <select name="chunking_method" id="chunking_method">
-            {% for method in chunking_methods %}
-                <option value="{{ method }}" {% if method == selected_chunking_method %}selected{% endif %}>{{ method }}</option>
-            {% endfor %}
-        </select>
-        <br><br>
-
-        <button type="submit" name="chunking_button">Chunk the Text</button>
-        <br><br>
-
-        {% if chunks %}
-            <h2>Chunks:</h2>
-            <ul>
-                {% for chunk in chunks %}
-                    <li>{{ chunk }}</li>
-                {% endfor %}
-            </ul>
+    <form method="POST">
+        {% if error_message %}
+        <div class="section error">
+            <p style="color: red;">{{ error_message }}</p>
+        </div>
         {% endif %}
+        <div class="section">
+            <label for="chunking_method">Select Chunking Method:</label>
+            <select name="chunking_method" id="chunking_method">
+                {% for method in chunking_methods %}
+                    <option value="{{ method }}" {% if method == selected_chunking_method %}selected{% endif %}>{{ method }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="embedding_method">Select Embedding Method:</label>
+            <select name="embedding_method" id="embedding_method">
+                {% for method in embedding_methods %}
+                    <option value="{{ method }}" {% if method == selected_embedding_method %}selected{% endif %}>{{ method }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Start Analysis</button>
+        </div>
 
         {% if metrics %}
+        <div class="section">
             <h2>Metrics:</h2>
-            <table border="1">
+            <table class="metrics-table">
                 <tr>
                     <th>Metric</th>
                     <th>Value</th>
@@ -43,41 +52,46 @@
                 {% for key, value in metrics.items() %}
                     <tr>
                         <td>{{ key }}</td>
-                        <td>{{ value }}</td>
+                        <td>
+                            {% if value is number %}
+                                {{ "%.4f"|format(value) }}
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </table>
+        </div>
         {% endif %}
 
-        <br><hr><br>
-
-        <label for="embedding_method">Select Embedding Method:</label>
-        <select name="embedding_method" id="embedding_method">
-            {% for method in embedding_methods %}
-                <option value="{{ method }}" {% if method == selected_embedding_method %}selected{% endif %}>{{ method }}</option>
-            {% endfor %}
-        </select>
-        <br><br>
-
-        <label for="query">Enter Query:</label>
-        <input type="text" name="query" id="query" value="{{ query }}" required>
-        <br><br>
-
-        <button type="submit" name="retrieval_button">Retrieve with Query</button>
-        <br><br>
+        {% if chunks %}
+        <div class="section">
+            <h2>Generated Chunks:</h2>
+            <div class="chunk-list">
+                <ol>
+                    {% for chunk in chunks %}
+                        <li>{{ chunk }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+        {% endif %}
 
         {% if ranked_chunks %}
-            <h2>Ranked Results:</h2>
-            <ul>
-                {% for chunk, score in ranked_chunks %}
-                    <li><strong>Score:</strong> {{ score }} - <strong>Chunk:</strong> {{ chunk }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-
-        {% if text %}
-            <h2>Uploaded Text:</h2>
-            <p>{{ text }}</p>
+        <div class="section">
+            <h2>Query Results:</h2>
+            <div class="chunk-list">
+                <ol>
+                    {% for chunk, score in ranked_chunks %}
+                        <li>
+                            <strong>Relevance Score: {{ "%.4f"|format(score) }}</strong>
+                            <p>{{ chunk }}</p>
+                        </li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
         {% endif %}
     </form>
 </body>
